@@ -362,25 +362,46 @@
     <!-- Upload by CK Editor -->
     <script>
         document.getElementById('uploadInsertBtn').addEventListener('click', function () {
-            if (!cropper) {
-                alert("Cropper not initialized");
-                return;
-            }
+    if (!cropper) {
+        alert("Cropper not initialized");
+        return;
+    }
 
-            cropper.getCroppedCanvas().toBlob(function (blob) {
-                // Convert blob to base64
-                const reader = new FileReader();
-                reader.onloadend = function () {
-                    const base64data = reader.result;
-                    // Send to CKEditor dialog via postMessage
-                    window.parent.postMessage({
-                        type: 'FROM_IMAGE_TOOL',
-                        imageBlob: base64data
-                    }, '*');
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/webp');
+    cropper.getCroppedCanvas().toBlob(function (blob) {
+        const formData = new FormData();
+        formData.append('upload', blob, 'image.webp'); // CKEditor expects field name: `upload`
+
+        // Get upload URL from query param (CKEditor passes it)
+        const params = new URLSearchParams(window.location.search);
+        const uploadUrl = params.get('CKEditorFuncNum') 
+            ? window.parent.CKEDITOR.instances['description'].config.filebrowserUploadUrl 
+            : '/your-default-upload-url'; // fallback
+
+        fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.uploaded) {
+                // Insert uploaded image into CKEditor
+                window.parent.CKEDITOR.tools.callFunction(
+                    params.get('CKEditorFuncNum'), // callback function number
+                    data.url // URL of uploaded image
+                );
+                window.parent.CKEDITOR.dialog.getCurrent().hide();
+            } else {
+                alert("Upload failed: " + data.error?.message);
+            }
+        })
+        .catch(error => {
+            console.error("Upload error:", error);
+            alert("Upload failed.");
         });
+    }, 'image/webp');
+});
+
     </script>
 
 <!-- Main Logic For Croping / Conversion / Downlad -->
@@ -826,3 +847,4 @@
 
 </body>
 </html>
+
