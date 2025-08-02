@@ -361,7 +361,7 @@
 
     <!-- Upload by CK Editor -->
     <script>
-    document.getElementById('uploadInsertBtn').addEventListener('click', function () {
+         document.getElementById('uploadInsertBtn').addEventListener('click', function () {
         if (!cropper) {
             alert("Cropper not initialized");
             return;
@@ -369,18 +369,29 @@
 
         cropper.getCroppedCanvas().toBlob(function (blob) {
             const formData = new FormData();
-            formData.append('upload', blob, 'image.webp'); // CKEditor expects field name: `upload`
+            formData.append('upload', blob, 'image.webp'); // Field name must match Laravel controller (usually 'upload')
 
-            // ✅ Get CSRF token from URL param (passed from Laravel)
+            // ✅ Extract CKEditor callback and CSRF token from query parameters
             const params = new URLSearchParams(window.location.search);
-            const csrfToken = params.get('_token'); // Important
-            formData.append('_token', csrfToken);    // ✅ Required for Laravel POST
+            const funcNum = params.get('CKEditorFuncNum'); // required for inserting
+            const csrfToken = params.get('_token');        // required for Laravel
 
-            // Get upload URL from CKEditor config or fallback
-            const uploadUrl = params.get('CKEditorFuncNum') 
-                ? window.parent.CKEDITOR.instances['description'].config.filebrowserUploadUrl 
-                : '/your-default-upload-url';
+            if (!csrfToken) {
+                alert("Missing CSRF token!");
+                return;
+            }
 
+            formData.append('_token', csrfToken);
+
+            // ✅ Get the CKEditor upload URL from parent config
+            const uploadUrl = window.parent.CKEDITOR.instances['description']?.config?.filebrowserUploadUrl;
+
+            if (!uploadUrl) {
+                alert("Upload URL not configured!");
+                return;
+            }
+
+            // ✅ Upload image to Laravel backend
             fetch(uploadUrl, {
                 method: 'POST',
                 body: formData,
@@ -389,14 +400,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.uploaded) {
-                    // ✅ Insert uploaded image into CKEditor
-                    window.parent.CKEDITOR.tools.callFunction(
-                        params.get('CKEditorFuncNum'),
-                        data.url
-                    );
+                    // ✅ Insert the uploaded image into CKEditor
+                    window.parent.CKEDITOR.tools.callFunction(funcNum, data.url);
                     window.parent.CKEDITOR.dialog.getCurrent().hide();
                 } else {
-                    alert("Upload failed: " + (data.error?.message || 'Unknown error'));
+                    alert("Upload failed: " + (data.error?.message || "Unknown error"));
                 }
             })
             .catch(error => {
@@ -405,7 +413,8 @@
             });
         }, 'image/webp');
     });
-</script>
+    
+   </script>
 
 
 <!-- Main Logic For Croping / Conversion / Downlad -->
@@ -851,5 +860,6 @@
 
 </body>
 </html>
+
 
 
