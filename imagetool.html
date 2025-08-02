@@ -287,7 +287,7 @@
     <div class="upload-container">
         <h1>Image Reducer | Cropping </h1>
         
-        <form id="uploadForm" action="" method="POST" enctype="multipart/form-data">
+        <form id="uploadForm" action=" " method="POST" enctype="multipart/form-data">
             <div class="drop-area" id="dropArea">
                 <p>Drag & Drop images here or click to select</p>
                 <input type="file" name="images[]" id="fileInput" multiple accept="image/*" style="display: none;">
@@ -307,7 +307,7 @@
                         <span id="dpiValue" style="font-weight: bold; margin-left: 10px;">72</span>
                 </div>
                 <button type="button" id="downloadAll" class="btn-primary">Download All (WebP)</button>
-                <button id="uploadInsertBtn"class="btn-primary" disabled>Insert To CKEditor</button>
+                <button type="button" id="uploadToServer" class="btn-primary" disabled>Insert to Server</button>
             </div>
         </form>
     </div>
@@ -343,81 +343,22 @@
         &nbsp;&nbsp;
         <a id="cancelpreviewBtn" class="btn"> <button class="btn3">Cancel</button></a>
     </div>
-
-    <!-- User Tracking -->
+<!-- User Tracking -->
     <script>
-        fetch("https://sarthakimagereducertool.infinityfree.me/imageReducerTool.html ", {  // this my hosting address .. replace it with yours 
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            referrer: document.referrer,
-            timestamp: Date.now(),
-            userAgent: navigator.userAgent
-          })
-        });
-    </script>
+fetch("https://yourtool.epizy.com/log-usage.php", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    referrer: document.referrer,
+    timestamp: Date.now(),
+    userAgent: navigator.userAgent
+  })
+});
+</script>
 
-    <!-- Upload by CK Editor -->
-    <script>
-         document.getElementById('uploadInsertBtn').addEventListener('click', function () {
-        if (!cropper) {
-            alert("Cropper not initialized");
-            return;
-        }
-
-        cropper.getCroppedCanvas().toBlob(function (blob) {
-            const formData = new FormData();
-            formData.append('upload', blob, 'image.webp'); // Field name must match Laravel controller (usually 'upload')
-
-            // ✅ Extract CKEditor callback and CSRF token from query parameters
-            const params = new URLSearchParams(window.location.search);
-            const funcNum = params.get('CKEditorFuncNum'); // required for inserting
-            const csrfToken = params.get('_token');        // required for Laravel
-
-            if (!csrfToken) {
-                alert("Missing CSRF token!");
-                return;
-            }
-
-            formData.append('_token', csrfToken);
-
-            // ✅ Get the CKEditor upload URL from parent config
-            const uploadUrl = window.parent.CKEDITOR.instances['description']?.config?.filebrowserUploadUrl;
-
-            if (!uploadUrl) {
-                alert("Upload URL not configured!");
-                return;
-            }
-
-            // ✅ Upload image to Laravel backend
-            fetch(uploadUrl, {
-                method: 'POST',
-                body: formData,
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.uploaded) {
-                    // ✅ Insert the uploaded image into CKEditor
-                    window.parent.CKEDITOR.tools.callFunction(funcNum, data.url);
-                    window.parent.CKEDITOR.dialog.getCurrent().hide();
-                } else {
-                    alert("Upload failed: " + (data.error?.message || "Unknown error"));
-                }
-            })
-            .catch(error => {
-                console.error("Upload error:", error);
-                alert("Upload failed.");
-            });
-        }, 'image/webp');
-    });
     
-   </script>
-
-
-<!-- Main Logic For Croping / Conversion / Downlad -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const dropArea = document.getElementById('dropArea');
@@ -444,7 +385,6 @@
             const maxSize = 2 * 1024 * 1024;
             const maxFiles = 10;
             const previewConverted = document.getElementById('previewConverted');
-            const uploadInsertBtn = document.getElementById('uploadInsertBtn');
             const previewModal = document.getElementById('previewModal');
             const originalPreviewImg = document.getElementById('originalPreviewImg');
             const convertedPreviewImg = document.getElementById('convertedPreviewImg');
@@ -452,6 +392,8 @@
             const convertedMeta = document.getElementById('convertedMeta');
             const downloadConvertedBtn = document.getElementById('downloadConvertedBtn');
             const cancelpreviewBtn = document.getElementById('cancelpreviewBtn');
+            const uploadToServer = document.getElementById('uploadToServer');
+
 
             // Preview Button Click-Event 
             previewConverted.addEventListener('click', () => {
@@ -571,7 +513,43 @@
                 // Update crop button state
                 updateCropButtonState();
             }
+
+            function createPreview(file, index) {
+                const reader = new FileReader();
+                    reader.onload = (e) => { 
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.setAttribute('draggable', true);
+                    previewItem.setAttribute('data-index', index);
+
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.dataset.index = index;
+                    img.style.cursor = 'pointer';
+                    img.addEventListener('click', () => {
+                        currentImageIndex = index;
+                        openCropper();
+                    });
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-btn';
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeImage(index);
+                    });
+
+                    previewItem.appendChild(img);
+                    previewItem.appendChild(removeBtn);
+                    preview.appendChild(previewItem);
+
+                    enableDragAndDrop(); // ensure drag is applied to new items
+                };
+                reader.readAsDataURL(file);
+            }
             
+
+
             cropButton.addEventListener('click', () => {
                 if (selectedFiles.length !== 1) {
                     showError('Please select one image to crop.');
@@ -653,7 +631,7 @@
                                     a.click();
                                     document.body.removeChild(a);
                                     resolve();
-                                }, 'image/webp', 0.8); // Adjust quality (0.8 = 80%)
+                                }, 'image/webp', 0.9); // Adjust quality (0.8 = 80%)
                             };
                             img.src = e.target.result;
                         };
@@ -662,39 +640,36 @@
                 }
             });
 
-            function createPreview(file, index) {
-                const reader = new FileReader();
-                    reader.onload = (e) => { 
-                    const previewItem = document.createElement('div');
-                    previewItem.className = 'preview-item';
-                    previewItem.setAttribute('draggable', true);
-                    previewItem.setAttribute('data-index', index);
+            const uploadToServerBtn = document.getElementById('uploadToServer');
+            uploadToServerBtn.addEventListener('click', () => {
+                if (selectedFiles.length === 0) {
+                    showError('No image selected to upload.');
+                    return;
+                }
 
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.dataset.index = index;
-                    img.style.cursor = 'pointer';
-                    img.addEventListener('click', () => {
-                        currentImageIndex = index;
-                        openCropper();
-                    });
+                const formData = new FormData();
 
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'remove-btn';
-                    removeBtn.innerHTML = '&times;';
-                    removeBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        removeImage(index);
-                    });
+                selectedFiles.forEach((file, index) => {
+                    formData.append('images[]', file, file.name);
+                });
 
-                    previewItem.appendChild(img);
-                    previewItem.appendChild(removeBtn);
-                    preview.appendChild(previewItem);
+                fetch('upload.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(result => {
+                    console.log(result);
+                    showSuccess('Images uploaded successfully.');
+                })
+                .catch(error => {
+                    console.error(error);
+                    showError('Failed to upload images.');
+                });
+            });
 
-                    enableDragAndDrop(); // ensure drag is applied to new items
-                };
-                reader.readAsDataURL(file);
-            }
+
+            
 
             function enableDragAndDrop() {
                 const items = preview.querySelectorAll('.preview-item');
@@ -733,6 +708,29 @@
                     });
                 });
             }
+            
+            // Dynamically Passing Form Action & CSRF
+            function getQueryParam(key) {
+                const params = new URLSearchParams(window.location.search);
+                return params.get(key);
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const form = document.getElementById("uploadForm");
+                const uploadUrl = getQueryParam("action");
+                const csrfToken = getQueryParam("_token");
+
+                if (uploadUrl) form.action = uploadUrl;
+
+                if (csrfToken) {
+                    const csrfInput = document.createElement("input");
+                    csrfInput.type = "hidden";
+                    csrfInput.name = "_token"; // Laravel expects "_token"
+                    csrfInput.value = csrfToken;
+                    form.appendChild(csrfInput);
+                }
+            });
+
 
             function updateFileOrder() {
                 const newOrder = [];
@@ -764,9 +762,8 @@
             function updateCropButtonState() {
                 const hasImages = selectedFiles.length > 0;
                 cropButton.disabled = selectedFiles.length !== 1;
-                previewConverted.disabled = selectedFiles.length !== 1;  // preview button 
-                uploadInsertBtn.disabled = selectedFiles.length !== 1;  // Insert To Ck button 
-
+                previewConverted.disabled = selectedFiles.length !== 1;  // preview button  
+                uploadToServer.disabled = selectedFiles.length !== 1;
                 downloadAllButton.disabled = !hasImages;
                 // uploadButton.disabled = !hasImages;
                 dpiDiv.style.display  = hasImages ? 'inline-block' : 'none';
@@ -860,6 +857,3 @@
 
 </body>
 </html>
-
-
-
