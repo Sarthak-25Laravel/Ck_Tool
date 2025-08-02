@@ -361,48 +361,52 @@
 
     <!-- Upload by CK Editor -->
     <script>
-        document.getElementById('uploadInsertBtn').addEventListener('click', function () {
-    if (!cropper) {
-        alert("Cropper not initialized");
-        return;
-    }
+    document.getElementById('uploadInsertBtn').addEventListener('click', function () {
+        if (!cropper) {
+            alert("Cropper not initialized");
+            return;
+        }
 
-    cropper.getCroppedCanvas().toBlob(function (blob) {
-        const formData = new FormData();
-        formData.append('upload', blob, 'image.webp'); // CKEditor expects field name: `upload`
+        cropper.getCroppedCanvas().toBlob(function (blob) {
+            const formData = new FormData();
+            formData.append('upload', blob, 'image.webp'); // CKEditor expects field name: `upload`
 
-        // Get upload URL from query param (CKEditor passes it)
-        const params = new URLSearchParams(window.location.search);
-        const uploadUrl = params.get('CKEditorFuncNum') 
-            ? window.parent.CKEDITOR.instances['description'].config.filebrowserUploadUrl 
-            : '/your-default-upload-url'; // fallback
+            // ✅ Get CSRF token from URL param (passed from Laravel)
+            const params = new URLSearchParams(window.location.search);
+            const csrfToken = params.get('_token'); // Important
+            formData.append('_token', csrfToken);    // ✅ Required for Laravel POST
 
-        fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.uploaded) {
-                // Insert uploaded image into CKEditor
-                window.parent.CKEDITOR.tools.callFunction(
-                    params.get('CKEditorFuncNum'), // callback function number
-                    data.url // URL of uploaded image
-                );
-                window.parent.CKEDITOR.dialog.getCurrent().hide();
-            } else {
-                alert("Upload failed: " + data.error?.message);
-            }
-        })
-        .catch(error => {
-            console.error("Upload error:", error);
-            alert("Upload failed.");
-        });
-    }, 'image/webp');
-});
+            // Get upload URL from CKEditor config or fallback
+            const uploadUrl = params.get('CKEditorFuncNum') 
+                ? window.parent.CKEDITOR.instances['description'].config.filebrowserUploadUrl 
+                : '/your-default-upload-url';
 
-    </script>
+            fetch(uploadUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.uploaded) {
+                    // ✅ Insert uploaded image into CKEditor
+                    window.parent.CKEDITOR.tools.callFunction(
+                        params.get('CKEditorFuncNum'),
+                        data.url
+                    );
+                    window.parent.CKEDITOR.dialog.getCurrent().hide();
+                } else {
+                    alert("Upload failed: " + (data.error?.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error("Upload error:", error);
+                alert("Upload failed.");
+            });
+        }, 'image/webp');
+    });
+</script>
+
 
 <!-- Main Logic For Croping / Conversion / Downlad -->
     <script>
@@ -847,4 +851,5 @@
 
 </body>
 </html>
+
 
