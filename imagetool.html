@@ -287,7 +287,7 @@
     <div class="upload-container">
         <h1>Image Reducer | Cropping </h1>
         
-        <form id="uploadForm" action="{{ route('upload.image') }}" method="POST" enctype="multipart/form-data">
+        <form id="uploadForm" action="" method="POST" enctype="multipart/form-data">
             <div class="drop-area" id="dropArea">
                 <p>Drag & Drop images here or click to select</p>
                 <input type="file" name="images[]" id="fileInput" multiple accept="image/*" style="display: none;">
@@ -307,7 +307,7 @@
                         <span id="dpiValue" style="font-weight: bold; margin-left: 10px;">72</span>
                 </div>
                 <button type="button" id="downloadAll" class="btn-primary">Download All (WebP)</button>
-                <button id="uploadInsertBtn">Insert To CKEditor</button>
+                <button id="uploadInsertBtn"class="btn-primary" disabled>Insert To CKEditor</button>
             </div>
         </form>
     </div>
@@ -410,6 +410,7 @@
             const maxSize = 2 * 1024 * 1024;
             const maxFiles = 10;
             const previewConverted = document.getElementById('previewConverted');
+            const uploadInsertBtn = document.getElementById('uploadInsertBtn');
             const previewModal = document.getElementById('previewModal');
             const originalPreviewImg = document.getElementById('originalPreviewImg');
             const convertedPreviewImg = document.getElementById('convertedPreviewImg');
@@ -730,6 +731,8 @@
                 const hasImages = selectedFiles.length > 0;
                 cropButton.disabled = selectedFiles.length !== 1;
                 previewConverted.disabled = selectedFiles.length !== 1;  // preview button 
+                uploadInsertBtn.disabled = selectedFiles.length !== 1;  // Insert To Ck button 
+
                 downloadAllButton.disabled = !hasImages;
                 // uploadButton.disabled = !hasImages;
                 dpiDiv.style.display  = hasImages ? 'inline-block' : 'none';
